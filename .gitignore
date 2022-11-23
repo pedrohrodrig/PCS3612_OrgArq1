@@ -1,0 +1,6 @@
+atividade_4a/db/*
+atividade_4a/incremental_db/*
+atividade_4a/output_files/*
+*.qpf
+*.qsf
+*.qws
