@@ -14,34 +14,55 @@ entity controlunit is
         aluSrc       : out std_logic;
         regWrite     : out std_logic;
         -- From Datapath
-        opcode       : in std_logic_vector(10 downto 0)
+        opcode       : in std_logic_vector(6 downto 0)
     );
 end entity;
 
 architecture behavioral_uc of controlunit is
 
-    signal Rf, LDUR, STUR, CBZ, B : std_logic;
+    component maindec is
+        port(
+            op: in std_logic_vector(6 downto 0);
+            ResultSrc: out std_logic_vector(1 downto 0);
+            MemWrite: out std_logic;
+            Branch, ALUSrc: out std_logic;
+            RegWrite, Jump: out std_logic;
+            ImmSrc: out std_logic_vector(1 downto 0);
+            ALUOp: out std_logic_vector(1 downto 0)
+        );
+    end component;
+
+    signal LDUR, STUR, CBZ : std_logic;
+    signal aluop_s, immSrc_s, resultSrc_s : std_logic_vector(1 downto 0);
+    signal branch_s, memWrite_s, aluSrc_s, regWrite_s, jump_s: std_logic; 
 
 begin
 
-    Rf   <= '1' when (opcode(10) = '1' and opcode(7 downto 4) = "0101" and opcode(2 downto 0) = "000") else '0';
-    LDUR <= '1' when opcode = "11111000010" else '0';
-    STUR <= '1' when opcode = "11111000000" else '0';
-    CBZ  <= '1' when opcode(10 downto 3) = "10110100" else '0';
-    B    <= '1' when opcode(10 downto 5) = "000101" else '0';
+    decoder: maindec
+    port map(
+        op         => opcode, 
+        ResultSrc  => resultSrc_s, 
+        MemWrite   => memWrite_s,
+        Branch     => branch_s, 
+        ALUSrc     => aluSrc_s, 
+        RegWrite   => regWrite_s, 
+        Jump       => jump_s, 
+        ImmSrc     => immSrc_s,
+        ALUOp      => aluop_s
+    );
+
+    LDUR <= '1' when opcode = "0000011" else '0';
+    STUR <= '1' when opcode = "0100011" else '0';
+    CBZ  <= '1' when opcode = "1100011" else '0';
 
     reg2loc      <= STUR or CBZ;
-    uncondBranch <= B;
-    branch       <= CBZ;
+    uncondBranch <= jump_s;
+    branch       <= branch_s;
     memRead      <= LDUR;
     memToReg     <= LDUR;
-    memWrite     <= STUR;
-    aluSRC       <= LDUR or STUR;
-    regWrite     <= LDUR or Rf;
-
-    aluOp <= "00" when (LDUR or STUR) = '1' else
-             "01" when CBZ = '1'            else
-             "10" when Rf = '1'             else
-             "11";
+    memWrite     <= memWrite_s;
+    aluSRC       <= aluSrc_s;
+    regWrite     <= regWrite_s;
+    aluOp <= aluop_s
 
 end behavioral_uc ; -- behavioral

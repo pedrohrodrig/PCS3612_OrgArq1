@@ -5,35 +5,27 @@ use ieee.numeric_std.all;
 
 entity signExtend is
     port(
-        i : in  std_logic_vector(31 downto 0); -- input
-        o : out std_logic_vector(63 downto 0) -- output
+        Instr_D  : in  std_logic_vector(24 downto 0); 
+        ImmSrc_D : in  std_logic_vector(1 downto 0);
+        ImmExt_D : out std_logic_vector(31 downto 0) 
     );
 end signExtend;
 
 architecture behavioral_se of signExtend is
 
-    signal opcode     : std_logic_vector(5 downto 0);
-    signal addressD   : std_logic_vector(8 downto 0);
-    signal addressB   : std_logic_vector(25 downto 0);
-    signal addressCBZ : std_logic_vector(18 downto 0);
-
-    -- OPCODES
-    -- B : 000101
-    -- CBZ : 101101
-    -- LDUR : 11111000010
-    -- STUR : 11111000000
+    signal Instr_00 : std_logic_vector(11 downto 0);
+    signal Instr_01 : std_logic_vector(11 downto 0);
+    signal Instr_10 : std_logic_vector(12 downto 0);
 
 begin
 
-    opcode <= i(31 downto 26);
+    Instr_00 <= Instr_D(31 downto 20); --when (opcode(10 downto 0) = "11111000010" or opcode(10 downto 0) = "11111000000") else
+    Instr_01 <= Instr_D(31 downto 25) & Instr_D(11 downto 7);
+    Instr_10 <= Instr_D(31) & Instr_D(7) & Instr_D(30 downto 25) & Instr_D(11 downto 8) & '0';
 
-    addressD   <= i(20 downto 12); --when (opcode(10 downto 0) = "11111000010" or opcode(10 downto 0) = "11111000000") else
-    addressB   <= i(25 downto 0);
-    addressCBZ <= i(23 downto 5);
-
-    o <= std_logic_vector(resize(signed(addressD), 64))   when (opcode = "111110") else
-         std_logic_vector(resize(signed(addressB), 64))   when (opcode = "000101") else
-         std_logic_vector(resize(signed(addressCBZ), 64)) when (opcode = "101101") else
+    o <= std_logic_vector(resize(signed(Instr_00), 32)) when (ImmSrc_D = "00") else
+         std_logic_vector(resize(signed(Instr_01), 32)) when (ImmSrc_D = "01") else
+         std_logic_vector(resize(signed(Instr_10), 32)) when (ImmSrc_D = "10") else
          "0000000000000000000000000000000000000000000000000000000000000000";
 
 

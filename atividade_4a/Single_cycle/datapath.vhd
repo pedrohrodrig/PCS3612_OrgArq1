@@ -12,25 +12,29 @@ entity datapath is
         reset : in std_logic;
 
         -- From Control Unit
-        reg2loc  : in std_logic;
-        pcsrc    : in std_logic;
-        memToReg : in std_logic;
-        aluCtrl  : in std_logic_vector(3 downto 0);
-        aluSrc   : in std_logic;
-        regWrite : in std_logic;
+        RegWrite_D   : in std_logic;
+        ResultSrc_D  : in std_logic_vector(1 downto 0);
+        MemWrite_D   : in std_logic;
+        Jump_D       : in std_logic;
+        Branch_D     : in std_logic;
+        ALUControl_D : in std_logic_vector(2 downto 0);
+        ALUSrc_D     : in std_logic;
+        ImmSrc_D     : in std_logic_vector(1 downto 0);
 
         -- To Control Unit
-        opcode : out std_logic_vector(10 downto 0);
-        zero   : out std_logic;
+        opcode : out std_logic_vector(6 downto 0);
+        funct3 : out std_logic_vector(2 downto 0);
+        funct7 : out std_logic;
 
         -- IM Interface
-        imAddr : out std_logic_vector(63 downto 0);
-        imOut  : in std_logic_vector(31 downto 0); --Instrução coletada da memória de intruções
+        IM_Addr     : out std_logic_vector(63 downto 0);
+        IM_ReadData : in  std_logic_vector(31 downto 0); --Instrução coletada da memória de intruções
 
         -- DM Interface
-        dmAddr : out std_logic_vector(63 downto 0);
-        dmIn   : out std_logic_vector(63 downto 0);
-        dmOut  : in std_logic_vector(63 downto 0)
+        DM_WriteEnable : out std_logic;
+        DM_Addr        : out std_logic_vector(63 downto 0);
+        DM_WriteData   : out std_logic_vector(63 downto 0);
+        DM_ReadData    : in  std_logic_vector(63 downto 0)
     );
 end entity datapath;
 
@@ -67,8 +71,9 @@ architecture PoliLeg_FD of datapath is
 
     component signExtend is
         port(
-            i: in  std_logic_vector(31 downto 0); -- input
-            o: out std_logic_vector(63 downto 0) -- output
+            Instr_D  : in  std_logic_vector(24 downto 0); 
+            ImmSrc_D : in  std_logic_vector(1 downto 0);
+            ImmExt_D : out std_logic_vector(31 downto 0) 
         );
     end component;
 
@@ -85,49 +90,30 @@ architecture PoliLeg_FD of datapath is
         );
     end component;
 
-    signal PCNextInst, PCBranchInst                : std_logic_vector(63 downto 0);
-    signal imD1, imD2                              : std_logic_vector(63 downto 0);
-    signal dmToIm                                  : std_logic_vector(63 downto 0);
-    signal MUXImOut                                : std_logic_vector(4 downto 0);
-    signal imD2OrExtAddr                           : std_logic_vector(63 downto 0);
-    signal dmAddr_o, dmIn_o                        : std_logic_vector(63 downto 0);
-    signal imOut_o                                 : std_logic_vector(31 downto 0);
-    signal dmOut_o                                 : std_logic_vector(63 downto 0);
-    signal extAddr, shiftedExtAddr                 : std_logic_vector(63 downto 0);
-    signal out_IFID, in_IFID                       : std_logic_vector(63 downto 0);
-    signal out_IDEX, in_IDEX                       : std_logic_vector(63 downto 0);
-    signal out_EXMEM, in_EXMEM                     : std_logic_vector(63 downto 0);
-    signal out_MEMWB, in_MEMWB                     : std_logic_vector(63 downto 0);
-    signal not_clock                               : std_logic;
-    signal PC_F, PC_D                              : std_logic_vector(31 downto 0);
-    signal PCPlus4_F, PCPlus4_D                    : std_logic_vector(31 downto 0);
-    signal Instr_F, Instr_D                        : std_logic_vector(31 downto 0);
+    signal not_clock                                             : std_logic;
+    signal PC_F_line                                             : std_logic_vector(31 downto 0);
+    signal PC_F, PC_D                                            : std_logic_vector(31 downto 0);
+    signal PCPlus4_F, PCPlus4_D, PCPlus4_E, PCPlus4_M, PCPlus4_W : std_logic_vector(31 downto 0);
+    signal Instr_F, Instr_D                                      : std_logic_vector(31 downto 0);
+    signal RD1_E, RD1_D                                          : std_logic_vector(31 downto 0);
+    signal RD2_E, RD2_D                                          : std_logic_vector(31 downto 0);
+    signal WriteData_E, WriteData_M                              : std_logic_vector(31 downto 0);
+    signal ALUResult_E, ALUResult_M, ALUResult_W                 : std_logic_vector(31 downto 0);
+    signal ReadData_M, ReadData_W                                : std_logic_vector(31 downto 0);
+    signal Result_W                                              : std_logic_vector(31 downto 0);
+    signal SrcA_E                                                : std_logic_vector(31 downto 0);
+    signal SrcB_E                                                : std_logic_vector(31 downto 0);
+    signal PCTarget_E                                            : std_logic_vector(31 downto 0);
+    signal Rd_D, Rd_E, Rd_M, Rd_W                                : std_logic_vector(4 downto 0);
+    signal Zero_E                                                : std_logic;
+
+    constant FourVector                                          : std_logic_vector(63 downto 0) := "0000000000000000000000000000000000000000000000000000000000000100";
 
 begin
-
-    --  final da operação é zero
-    fd: process(clock)
-    begin
-        if rising_edge(clock) then
-            dmIn <= dmIn_o;
-        end if;
-    end process;
-
-    imOut_o <= imOut;
-    dmOut_o <= dmOut;
-    imAddr  <= PC_F;
-    dmAddr  <= dmAddr_o;
-
-    --Entradas dos registradores do pipeline
-    --Preenchendo com 0s o que ainda não tenho certeza de que deve entrar nos registradores. 
-    in_IFID <= imOut & "00000000000000000000000000000000";
-    in_IDEX <= extAddr & imD1 & imD2 & "0000000000000000000000000000000000000000000000000000000000000000";
     
     --Registradores do pipeline
 
-    not_clock <= not clock;
-
-    --registradores IF/ID
+    -- registradores IF/ID
     REG_IF_ID_Instr: registrador_universal
         generic map(word_size => 32)
         port map(
@@ -168,12 +154,6 @@ begin
         );
 
     --registrador ID/EX
-    --Saidas: 
-            --Entrada da ULA (rd1)
-            --Entrada do MUX da ULA (rd2)
-            --Entrada do somador (imm)
-            --Entrada do mux (imm)
-            --Entrada do somador (PCatual)
     REG_ID_EX_RD1: registrador_universal
         generic map(word_size => 32)
         port map(
@@ -200,21 +180,8 @@ begin
             parallel_output => RD2_E
         );
 
-    
-
-    --registrador EX/MEM
-    --Entradas: 
-            --Resultado do somador
-            --Zero 
-            --Resultado da ULA
-            --(rd2)
-    --Saídas:
-            --Entrada do MUX do PC
-            --Zero 
-            --Endereço da memória de dados
-            --Write data
-    REG_EX_MEM: registrador_universal
-        generic map(word_size => 64)
+    REG_ID_EX_PC: registrador_universal
+        generic map(word_size => 32)
         port map(
             clock           => clock, 
             clear           => reset, 
@@ -222,19 +189,12 @@ begin
             enable          => '1',
             control         => "11",
             serial_input    => '0',
-            parallel_input  => in_EXMEM,
-            parallel_output => out_EXMEM
+            parallel_input  => PC_D,
+            parallel_output => PC_E
         );
 
-    --registrador MEM/WB
-    --Entradas:
-            --Read Data
-            --Endereço da memória de dados
-    --Saídas:
-            --Ambas as entradas num MUX que alimenta o Write Data
-
-    REG_MEM_WB: registrador_universal
-        generic map(word_size => 64)
+    REG_ID_EX_ImmExt: registrador_universal
+        generic map(word_size => 32)
         port map(
             clock           => clock, 
             clear           => reset, 
@@ -242,105 +202,409 @@ begin
             enable          => '1',
             control         => "11",
             serial_input    => '0',
-            parallel_input  => in_MEMWB,
-            parallel_output => out_MEMWB
+            parallel_input  => ImmExt_D,
+            parallel_output => ImmExt_E
         );
 
-    -- somador da proxima instrucao ordenada
-    pcNOrdInst: alu 
-        generic map(32)
+    REG_ID_EX_PCPlus4: registrador_universal
+        generic map(word_size => 32)
         port map(
-            PC_F, 
-            "00000000000000000000000000000100", 
-            PCPlus4_F, 
-            "0010", 
-            open, 
-            open, 
-            open
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => PCPlus4_D,
+            parallel_output => PCPlus4_E
         );
 
-    -- registrador que guarda a proxima instrucao
-    pc: registrador_universal
-        generic map(64)
+    REG_ID_EX_Rd: registrador_universal
+        generic map(word_size => 5)
         port map(
-            clock,
-            reset, 
-            '0', 
-            '1', 
-            "11", 
-            '0', 
-            PCNextInst, 
-            PC_F
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => Rd_D,
+            parallel_output => Rd_E
         );
+
+    REG_ID_EX_RegWrite: registrador_universal
+        generic map(word_size => 1)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => RegWrite_D,
+            parallel_output => RegWrite_E
+        );
+        
+    REG_ID_EX_ResultSrc: registrador_universal
+        generic map(word_size => 2)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => ResultSrc_D,
+            parallel_output => ResultSrc_E
+        );
+
+    REG_ID_EX_MemWrite: registrador_universal
+        generic map(word_size => 1)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => MemWrite_D,
+            parallel_output => MemWrite_E
+        );
+
+    REG_ID_EX_Jump: registrador_universal
+        generic map(word_size => 1)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => Jump_D,
+            parallel_output => Jump_E
+        );
+
+    REG_ID_EX_Branch: registrador_universal
+        generic map(word_size => 1)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => Branch_D,
+            parallel_output => Branch_E
+        );
+
+    REG_ID_EX_ALUControl: registrador_universal
+        generic map(word_size => 1)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => ALUControl_D,
+            parallel_output => ALUControl_E
+        );
+
+    REG_ID_EX_ALUSrc: registrador_universal
+        generic map(word_size => 1)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => ALUSrc_D,
+            parallel_output => ALUSrc_E
+        );
+
+    --registradores EX/MEM
+    REG_EX_MEM_ALUResult: registrador_universal
+        generic map(word_size => 32)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => ALUResult_E,
+            parallel_output => ALUResult_M
+        );
+
+    REG_EX_MEM_WriteData: registrador_universal
+        generic map(word_size => 32)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => WriteData_E,
+            parallel_output => WriteData_M
+        );
+
+    REG_EX_MEM_PCPlus4: registrador_universal
+        generic map(word_size => 32)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => PCPlus4_E,
+            parallel_output => PCPlus4_M
+        );
+
+    REG_EX_MEM_Rd: registrador_universal
+        generic map(word_size => 5)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => Rd_E,
+            parallel_output => Rd_M
+        );
+
+    REG_EX_MEM_RegWrite: registrador_universal
+        generic map(word_size => 1)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => RegWrite_E,
+            parallel_output => RegWrite_M
+        );
+
+    REG_EX_MEM_ResultSrc: registrador_universal
+        generic map(word_size => 2)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => ResultSrc_E,
+            parallel_output => ResultSrc_M
+        );
+
+    REG_EX_MEM_MeMWrite: registrador_universal
+        generic map(word_size => 1)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => MeMWrite_E,
+            parallel_output => MeMWrite_M
+        );
+
+    --registradores MEM/WB
+    REG_MEM_WB_ALUResult: registrador_universal
+        generic map(word_size => 32)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => ALUResult_M,
+            parallel_output => ALUResult_W
+        );
+
+    REG_MEM_WB_ReadData: registrador_universal
+        generic map(word_size => 32)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => ReadData_M,
+            parallel_output => ReadData_W
+        );
+
+    REG_MEM_WB_PCPlus4: registrador_universal
+        generic map(word_size => 32)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => PCPlus4_M,
+            parallel_output => PCPlus4_W
+        );
+
+    REG_MEM_WB_Rd: registrador_universal
+        generic map(word_size => 5)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => Rd_M,
+            parallel_output => Rd_W
+        );
+
+    REG_MEM_WB_RegWrite: registrador_universal
+        generic map(word_size => 1)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => RegWrite_M,
+            parallel_output => RegWrite_W
+        );
+
+    REG_MEM_WB_ResultSrc: registrador_universal
+        generic map(word_size => 2)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => ResultSrc_M,
+            parallel_output => ResultSrc_W
+        );
+
+    -- MUX 2x1
+    PC_F_line <= PCPlus4_F when PCSrc_E = '0' else PCTarget_E;
+
+    -- PC Register
+    PC: registrador_universal
+        generic map(word_size => 32)
+        port map(
+            clock          => clock,
+            clear          => reset, 
+            set            => '0', 
+            enable         => '1', 
+            control        => "11", 
+            serial_input   => '0', 
+            parallel_input => PC_F_line, 
+            parallel_input => PC_F
+        );
+
+    -- Next Instruction Counter
+    NEXT_INSTRUCTION: alu 
+        generic map(size => 32)
+        port map(
+            A  => PC_F, 
+            B  => FourVector, 
+            F  => PCPlus4_F, 
+            S  => "0010", 
+            Z  => open, 
+            Ov => open, 
+            Co => open
+        );
+
+    -- Instruction Memory Interface
+    IM_Addr     <= PC_F;
+    IM_ReadData <= Instr_F;
     
-    -- MUX seleciona prox instrucao ordenada ou com branch
-    PCNextInst <= PCPlus4_F when pcsrc = '0' else PCBranchInst;
-
-    -- MUX seleciona qual parte da instrucao entra no banco de registradores
-    MUXImOut <= imOut_o(20 downto 16) when reg2loc = '0' else imOut_o(4 downto 0);
-
     -- banco de registradores
+    not_clock <= not clock;
+
     rf: regfile
         generic map(
-            32,
-            64
+            regn     => 32,
+            wordSize => 32
         )
         port map(
-            not_clock,
-            reset,
-            regWrite,
-            imOut_o(9 downto 5), --rr1
-            MUXImOut,
-            imOut_o(4 downto 0), --rr2 
-            dmToIm, --wr
-            imD1, --q1
-            imD2 --q2
+            clock    => not_clock,
+            reset    => reset,
+            regWrite => RegWrite_W,
+            rr1      => Instr_D(19 downto 15), 
+            rr2      => Instr_D(24 downto 20),
+            wr       => Rd_W, 
+            d        => Result_W,
+            q1       => RD1_D, 
+            q2       => RD2_D 
         );
 
-    -- signExtend
-    se: signExtend
+    -- sign extender
+    SIGN_EXT: signExtend
+    port map(
+        Instr_D  => Instr_D,
+        ImmSrc_D => ImmSrc_D,
+        ImmExt_D => ImmExt_D,
+    );
+
+    -- MUX 2x1
+    SrcB_E <= RD2_E when ALUSrc_E = '0' else ImmExt_E;
+
+    -- Branch ALU
+    BRANCH_ALU: alu
+        generic map(size => 32)
         port map(
-            out_IFID(63 downto 32),
-            extAddr
+            A  => PC_E, 
+            B  => ImmExt_E, 
+            F  => PCTarget_E, 
+            S  => "0010", 
+            Z  => open, 
+            Ov => open, 
+            Co => open
         );
 
-    -- MUX do segundo operando da ALU multioperacional
-    imD2OrExtAddr <= imD2 when aluSrc = '0' else extAddr;
-
-    -- alu multioperacional
-    opAlu : alu
-        generic map(64)
+    -- General ALU
+    GENERAL_ALU: alu
+        generic map(size => 32)
         port map(
-            imD1,
-            imD2OrExtAddr, 
-            dmAddr_o, 
-            aluCtrl, 
-            zero, 
-            open, 
-            open
+            A  => SrcA_E, 
+            B  => SrcB_E, 
+            F  => ALUResult_E, 
+            S  => ALUControl_E, 
+            Z  => Zero_E, 
+            Ov => open, 
+            Co => open 
         );
 
-    -- MUX seleciona o que sera escrito no regfile
-    dmToIm <= dmAddr_o when memToReg = '0' else dmOut_o;
+    -- Data Memory Interface
+    ReadData_M     <= DM_ReadData;
+    DM_Addr        <= ALUResult_M;
+    DM_WriteData   <= WriteData_M;
+    DM_WriteEnable <= MemWrite_M;
 
-    -- shift left 2
-    shiftedExtAddr <= extAddr(61 downto 0) & "00";
+    -- MUX 3x1
+    Result_W <= ALUResult_W when ResultSrc_W = "00" else
+                ReadData_W  when ResultSrc_W = "01" else
+                PCPlus4_W   when ResultSrc_W = "10" else
+                "00000000000000000000000000000000";
 
-    -- alu que define a proxima instrucao dada pelo branch
-    brAlu : alu
-        generic map(64)
-        port map(
-            PC_F,
-            shiftedExtAddr, 
-            PCBranchInst, 
-            "0010", 
-            open, 
-            open, 
-            open
-        );
+    -- Connecting signals
+    WriteData_E <= RD2_E;
 
-    opcode <= imOut_o(31 downto 21);
-	 
-	dmIn_o <= imD2;
+    -- Output logic
+    opcode <= Instr_D(6 downto 0);
+    funct3 <= Instr_D(14 downto 12);
+    funct7 <= Instr_D(30);
 
+    PCSrc_E <= Jump_E or (Zero_E and Branch_E);
+   
 end PoliLeg_FD ; -- PoliLeg_FD
