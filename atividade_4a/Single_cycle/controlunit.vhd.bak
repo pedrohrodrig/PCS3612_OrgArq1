@@ -63,6 +63,6 @@ begin
     memWrite     <= memWrite_s;
     aluSRC       <= aluSrc_s;
     regWrite     <= regWrite_s;
-    aluOp <= aluop_s;
+    aluOp <= aluop_s
 
 end behavioral_uc ; -- behavioral

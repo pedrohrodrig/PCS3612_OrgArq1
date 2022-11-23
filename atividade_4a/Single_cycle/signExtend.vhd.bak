@@ -23,10 +23,10 @@ begin
     Instr_01 <= Instr_D(31 downto 25) & Instr_D(11 downto 7);
     Instr_10 <= Instr_D(31) & Instr_D(7) & Instr_D(30 downto 25) & Instr_D(11 downto 8) & '0';
 
-    ImmExt_D <= std_logic_vector(resize(signed(Instr_00), 32)) when (ImmSrc_D = "00") else
-                std_logic_vector(resize(signed(Instr_01), 32)) when (ImmSrc_D = "01") else
-                std_logic_vector(resize(signed(Instr_10), 32)) when (ImmSrc_D = "10") else
-                "0000000000000000000000000000000000000000000000000000000000000000";
+    o <= std_logic_vector(resize(signed(Instr_00), 32)) when (ImmSrc_D = "00") else
+         std_logic_vector(resize(signed(Instr_01), 32)) when (ImmSrc_D = "01") else
+         std_logic_vector(resize(signed(Instr_10), 32)) when (ImmSrc_D = "10") else
+         "0000000000000000000000000000000000000000000000000000000000000000";
 
 
 end behavioral_se ; -- behavioral

@@ -92,7 +92,7 @@ architecture PoliLeg_FD of datapath is
 
     signal not_clock                                             : std_logic;
     signal PC_F_line                                             : std_logic_vector(31 downto 0);
-    signal PC_F, PC_D, PC_E                                      : std_logic_vector(31 downto 0);
+    signal PC_F, PC_D                                            : std_logic_vector(31 downto 0);
     signal PCPlus4_F, PCPlus4_D, PCPlus4_E, PCPlus4_M, PCPlus4_W : std_logic_vector(31 downto 0);
     signal Instr_F, Instr_D                                      : std_logic_vector(31 downto 0);
     signal RD1_E, RD1_D                                          : std_logic_vector(31 downto 0);
@@ -104,17 +104,8 @@ architecture PoliLeg_FD of datapath is
     signal SrcA_E                                                : std_logic_vector(31 downto 0);
     signal SrcB_E                                                : std_logic_vector(31 downto 0);
     signal PCTarget_E                                            : std_logic_vector(31 downto 0);
-	signal ImmExt_D, ImmExt_E                                    : std_logic_vector(31 downto 0);
     signal Rd_D, Rd_E, Rd_M, Rd_W                                : std_logic_vector(4 downto 0);
     signal Zero_E                                                : std_logic;
-    signal PCSrc_E                                               : std_logic;
-    signal RegWrite_E, RegWrite_M, RegWrite_W                    : std_logic;
-    signal ResultSrc_E, ResultSrc_M, ResultSrc_W                 : std_logic_vector(1 downto 0);
-    signal MemWrite_E, MemWrite_M                                : std_logic;
-    signal Jump_E                                                : std_logic;
-    signal Branch_E                                              : std_logic;
-    signal ALUControl_E                                          : std_logic;
-    signal ALUSrc_E                                              : std_logic;
 
     constant FourVector                                          : std_logic_vector(63 downto 0) := "0000000000000000000000000000000000000000000000000000000000000100";
 
@@ -240,6 +231,19 @@ begin
             parallel_input  => Rd_D,
             parallel_output => Rd_E
         );
+
+    REG_ID_EX_RegWrite: registrador_universal
+        generic map(word_size => 1)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => RegWrite_D,
+            parallel_output => RegWrite_E
+        );
         
     REG_ID_EX_ResultSrc: registrador_universal
         generic map(word_size => 2)
@@ -252,6 +256,71 @@ begin
             serial_input    => '0',
             parallel_input  => ResultSrc_D,
             parallel_output => ResultSrc_E
+        );
+
+    REG_ID_EX_MemWrite: registrador_universal
+        generic map(word_size => 1)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => MemWrite_D,
+            parallel_output => MemWrite_E
+        );
+
+    REG_ID_EX_Jump: registrador_universal
+        generic map(word_size => 1)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => Jump_D,
+            parallel_output => Jump_E
+        );
+
+    REG_ID_EX_Branch: registrador_universal
+        generic map(word_size => 1)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => Branch_D,
+            parallel_output => Branch_E
+        );
+
+    REG_ID_EX_ALUControl: registrador_universal
+        generic map(word_size => 1)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => ALUControl_D,
+            parallel_output => ALUControl_E
+        );
+
+    REG_ID_EX_ALUSrc: registrador_universal
+        generic map(word_size => 1)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => ALUSrc_D,
+            parallel_output => ALUSrc_E
         );
 
     --registradores EX/MEM
@@ -307,6 +376,19 @@ begin
             parallel_output => Rd_M
         );
 
+    REG_EX_MEM_RegWrite: registrador_universal
+        generic map(word_size => 1)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => RegWrite_E,
+            parallel_output => RegWrite_M
+        );
+
     REG_EX_MEM_ResultSrc: registrador_universal
         generic map(word_size => 2)
         port map(
@@ -318,6 +400,19 @@ begin
             serial_input    => '0',
             parallel_input  => ResultSrc_E,
             parallel_output => ResultSrc_M
+        );
+
+    REG_EX_MEM_MeMWrite: registrador_universal
+        generic map(word_size => 1)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => MeMWrite_E,
+            parallel_output => MeMWrite_M
         );
 
     --registradores MEM/WB
@@ -373,6 +468,18 @@ begin
             parallel_output => Rd_W
         );
 
+    REG_MEM_WB_RegWrite: registrador_universal
+        generic map(word_size => 1)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => RegWrite_M,
+            parallel_output => RegWrite_W
+        );
 
     REG_MEM_WB_ResultSrc: registrador_universal
         generic map(word_size => 2)
@@ -386,42 +493,6 @@ begin
             parallel_input  => ResultSrc_M,
             parallel_output => ResultSrc_W
         );
-
-    -- Registradores de sinais de controle
-    CONTROL_UNIT_REGISTERS: process(clock, reset)
-    begin
-        if reset = '0' then
-            RegWrite_E   <= '0';
-            ResultSrc_E  <= "00";
-            MemWrite_E   <= '0';
-            Jump_E       <= '0';
-            Branch_E     <= '0';
-            ALUControl_E <= "000";
-            ALUSrc_E     <= '0';
-
-            RegWrite_M   <= '0';
-            ResultSrc_M  <= "00";
-            MemWrite_M   <= '0';
-            
-            RegWrite_W   <= '0';
-            ResultSrc_W  <= "00";
-        elsif clock'event and clock = '1' then
-            RegWrite_E   <= RegWrite_D;
-            ResultSrc_E  <= ResultSrc_D;
-            MemWrite_E   <= MemWrite_D;
-            Jump_E       <= Jump_D;
-            Branch_E     <= Branch_D;
-            ALUControl_E <= ALUControl_D;
-            ALUSrc_E     <= ALUSrc_E;
-            
-            RegWrite_M   <= RegWrite_E;
-            ResultSrc_M  <= ResultSrc_E;
-            MemWrite_M   <= MemWrite_E;
-
-            RegWrite_W   <= RegWrite_M;
-            ResultSrc_W  <= ResultSrc_M;
-        end if;
-    end process;
 
     -- MUX 2x1
     PC_F_line <= PCPlus4_F when PCSrc_E = '0' else PCTarget_E;
@@ -482,7 +553,7 @@ begin
     port map(
         Instr_D  => Instr_D,
         ImmSrc_D => ImmSrc_D,
-        ImmExt_D => ImmExt_D
+        ImmExt_D => ImmExt_D,
     );
 
     -- MUX 2x1
