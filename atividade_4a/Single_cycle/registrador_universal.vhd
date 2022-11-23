@@ -7,11 +7,11 @@ entity registrador_universal is
         word_size: positive := 4
     );
     port (
-        clock, clear, set, enable: in bit;
-        control: in bit_vector(1 downto 0);
-        serial_input: in bit;
-        parallel_input: in bit_vector(word_size-1 downto 0);
-        parallel_output: out bit_vector(word_size-1 downto 0)
+        clock, clear, set, enable : in bit;
+        control                   : in bit_vector(1 downto 0);
+        serial_input              : in bit;
+        parallel_input            : in bit_vector(word_size-1 downto 0);
+        parallel_output           : out bit_vector(word_size-1 downto 0)
     );
 end entity;
 
