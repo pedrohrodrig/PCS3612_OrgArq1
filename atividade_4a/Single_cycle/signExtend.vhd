@@ -1,20 +1,21 @@
 --SignExtend
 library ieee;
-use ieee.numeric_bit.all;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 entity signExtend is
     port(
-        i : in  bit_vector(31 downto 0); -- input
-        o : out bit_vector(63 downto 0) -- output
+        i : in  std_logic_vector(31 downto 0); -- input
+        o : out std_logic_vector(63 downto 0) -- output
     );
 end signExtend;
 
 architecture behavioral_se of signExtend is
 
-    signal opcode     : bit_vector(5 downto 0);
-    signal addressD   : bit_vector(8 downto 0);
-    signal addressB   : bit_vector(25 downto 0);
-    signal addressCBZ : bit_vector(18 downto 0);
+    signal opcode     : std_logic_vector(5 downto 0);
+    signal addressD   : std_logic_vector(8 downto 0);
+    signal addressB   : std_logic_vector(25 downto 0);
+    signal addressCBZ : std_logic_vector(18 downto 0);
 
     -- OPCODES
     -- B : 000101
@@ -30,9 +31,9 @@ begin
     addressB   <= i(25 downto 0);
     addressCBZ <= i(23 downto 5);
 
-    o <= bit_vector(resize(signed(addressD), 64))   when (opcode = "111110") else
-         bit_vector(resize(signed(addressB), 64))   when (opcode = "000101") else
-         bit_vector(resize(signed(addressCBZ), 64)) when (opcode = "101101") else
+    o <= std_logic_vector(resize(signed(addressD), 64))   when (opcode = "111110") else
+         std_logic_vector(resize(signed(addressB), 64))   when (opcode = "000101") else
+         std_logic_vector(resize(signed(addressCBZ), 64)) when (opcode = "101101") else
          "0000000000000000000000000000000000000000000000000000000000000000";
 
 

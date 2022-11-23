@@ -1,23 +1,24 @@
 --Registrador universal
 library ieee;
-use ieee.numeric_bit.all;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 entity registrador_universal is
     generic (
         word_size: positive := 4
     );
     port (
-        clock, clear, set, enable : in bit;
-        control                   : in bit_vector(1 downto 0);
-        serial_input              : in bit;
-        parallel_input            : in bit_vector(word_size-1 downto 0);
-        parallel_output           : out bit_vector(word_size-1 downto 0)
+        clock, clear, set, enable : in std_logic;
+        control                   : in std_logic_vector(1 downto 0);
+        serial_input              : in std_logic;
+        parallel_input            : in std_logic_vector(word_size-1 downto 0);
+        parallel_output           : out std_logic_vector(word_size-1 downto 0)
     );
 end entity;
 
 architecture funcionamento of registrador_universal is
 
-    signal ea, pe: bit_vector(word_size-1 downto 0);
+    signal ea, pe: std_logic_vector(word_size-1 downto 0);
 
 begin
 

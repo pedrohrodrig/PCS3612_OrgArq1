@@ -1,19 +1,21 @@
 --Não tenho ideia do que é isso aqui 
 library ieee;
-use ieee.numeric_bit.all;
+use ieee.numeric_std.all;
 
 entity alu1bit is
     port (
-        a, b, less, cin             : in  bit;
-        ainvert, binvert            : in  bit;
-        operation                   : in  bit_vector(1 downto 0);
-        result, cout, set, overflow : out bit
+        a, b, less, cin             : in  std_logic;
+        ainvert, binvert            : in  std_logic;
+        operation                   : in  std_logic_vector(1 downto 0);
+        result, cout, set, overflow : out std_logic
     );
 end entity ;
 
 architecture behav of alu1bit is
-signal au : bit;
-signal bu : bit;
+    
+    signal au : std_logic;
+    signal bu : std_logic;
+
 begin
 
     au <= (not(a)) when ainvert = '1' else a;

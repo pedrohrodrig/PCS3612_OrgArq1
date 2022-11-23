@@ -1,8 +1,9 @@
 --Banco de Registradores
 library ieee;
+use ieee.std_logic_1164.all;
 use ieee.math_real.ceil;
 use ieee.math_real.log2;
-use ieee.numeric_bit.all;
+use ieee.numeric_std.all;
 
 entity regfile is
     generic(
@@ -10,12 +11,12 @@ entity regfile is
         wordSize : natural := 64
     );
     port(
-        clock        : in bit;
-        reset        : in bit;
-        regWrite     : in bit;
-        rr1, rr2, wr : in bit_vector(natural(ceil(log2(real(regn))))-1 downto 0); -- bit_vector(log2(regn)-1 downto 0)
-        d            : in bit_vector(wordSize-1 downto 0);
-        q1, q2       : out bit_vector(wordSize-1 downto 0)
+        clock        : in std_logic;
+        reset        : in std_logic;
+        regWrite     : in std_logic;
+        rr1, rr2, wr : in std_logic_vector(natural(ceil(log2(real(regn))))-1 downto 0); -- std_logic_vector(log2(regn)-1 downto 0)
+        d            : in std_logic_vector(wordSize-1 downto 0);
+        q1, q2       : out std_logic_vector(wordSize-1 downto 0)
     );
 end regfile;
 
@@ -26,7 +27,7 @@ end regfile;
 
 architecture behavior_regfile of regfile is
 
-    type banco_t is array (0 to regn-1) of bit_vector(wordSize-1 downto 0);
+    type banco_t is array (0 to regn-1) of std_logic_vector(wordSize-1 downto 0);
 
     signal banco : banco_t;
 

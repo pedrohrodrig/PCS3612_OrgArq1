@@ -1,9 +1,12 @@
+library ieee;
+use ieee.std_logic_1164.all;
+
 --Controle da ULA
 entity alucontrol is
     port(
-        aluop   : in bit_vector(1 downto 0);
-        opcode  : in bit_vector(10 downto 0);
-        aluCtrl : out bit_vector(3 downto 0)
+        aluop   : in std_logic_vector(1 downto 0);
+        opcode  : in std_logic_vector(10 downto 0);
+        aluCtrl : out std_logic_vector(3 downto 0)
     );
 end entity;
 

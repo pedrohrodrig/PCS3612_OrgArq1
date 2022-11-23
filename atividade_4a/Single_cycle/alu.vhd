@@ -1,15 +1,18 @@
+library ieee;
+use ieee.std_logic_1164.all;
+
 --ULA
 entity alu is
 	generic(
 		size : natural := 10
 	);
 	port (
-		A, B 		 : in  bit_vector(size-1 downto 0);
-		F  			 : out bit_vector(size-1 downto 0);
-		S   		 : in  bit_vector (3 downto 0);
-		Z            : out bit;
-		Ov           : out bit;
-		Co           : out bit
+		A, B 		 : in  std_logic_vector(size-1 downto 0);
+		F  			 : out std_logic_vector(size-1 downto 0);
+		S   		 : in  std_logic_vector (3 downto 0);
+		Z            : out std_logic;
+		Ov           : out std_logic;
+		Co           : out std_logic
 		);
 end entity alu;
 
@@ -19,16 +22,16 @@ architecture arch of alu is
 
 	component alu1bit is 
 		port (
-			a, b, less, cin             : in  bit;
-            ainvert, binvert            : in  bit;
-            operation                   : in  bit_vector(1 downto 0);
-            result, cout, set, overflow : out bit
+			a, b, less, cin             : in  std_logic;
+            ainvert, binvert            : in  std_logic;
+            operation                   : in  std_logic_vector(1 downto 0);
+            result, cout, set, overflow : out std_logic
 		);
 	end component;
 
-	signal cin, result, cout, set, ovf : bit_vector(size-1 downto 0) := (others => '0');
-	signal op                          : bit_vector(1 downto 0);
-    signal zerado                      : bit_vector(size-1 downto 0) := (others => '0');
+	signal cin, result, cout, set, ovf : std_logic_vector(size-1 downto 0) := (others => '0');
+	signal op                          : std_logic_vector(1 downto 0);
+    signal zerado                      : std_logic_vector(size-1 downto 0) := (others => '0');
     
 begin
 

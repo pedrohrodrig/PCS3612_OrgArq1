@@ -1,23 +1,26 @@
+library ieee;
+use ieee.std_logic_1164.all;
+
 entity controlunit is
     port(
         -- To Datapath
-        reg2loc      : out bit;
-        uncondBranch : out bit;
-        branch       : out bit;
-        memRead      : out bit;
-        memToReg     : out bit;
-        aluOp        : out bit_vector(1 downto 0);
-        memWrite     : out bit;
-        aluSrc       : out bit;
-        regWrite     : out bit;
+        reg2loc      : out std_logic;
+        uncondBranch : out std_logic;
+        branch       : out std_logic;
+        memRead      : out std_logic;
+        memToReg     : out std_logic;
+        aluOp        : out std_logic_vector(1 downto 0);
+        memWrite     : out std_logic;
+        aluSrc       : out std_logic;
+        regWrite     : out std_logic;
         -- From Datapath
-        opcode       : in bit_vector(10 downto 0)
+        opcode       : in std_logic_vector(10 downto 0)
     );
 end entity;
 
 architecture behavioral_uc of controlunit is
 
-    signal Rf, LDUR, STUR, CBZ, B : bit;
+    signal Rf, LDUR, STUR, CBZ, B : std_logic;
 
 begin
 
