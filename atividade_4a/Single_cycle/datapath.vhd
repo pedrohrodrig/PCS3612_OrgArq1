@@ -85,12 +85,12 @@ architecture PoliLeg_FD of datapath is
         );
     end component;
 
-    signal PCNextOrdInst, PCNextInst, PCBranchInst : std_logic_vector(63 downto 0);
+    signal PCNextInst, PCBranchInst                : std_logic_vector(63 downto 0);
     signal imD1, imD2                              : std_logic_vector(63 downto 0);
     signal dmToIm                                  : std_logic_vector(63 downto 0);
     signal MUXImOut                                : std_logic_vector(4 downto 0);
     signal imD2OrExtAddr                           : std_logic_vector(63 downto 0);
-    signal dmAddr_o, imAddr_o, dmIn_o              : std_logic_vector(63 downto 0);
+    signal dmAddr_o, dmIn_o                        : std_logic_vector(63 downto 0);
     signal imOut_o                                 : std_logic_vector(31 downto 0);
     signal dmOut_o                                 : std_logic_vector(63 downto 0);
     signal extAddr, shiftedExtAddr                 : std_logic_vector(63 downto 0);
@@ -99,6 +99,8 @@ architecture PoliLeg_FD of datapath is
     signal out_EXMEM, in_EXMEM                     : std_logic_vector(63 downto 0);
     signal out_MEMWB, in_MEMWB                     : std_logic_vector(63 downto 0);
     signal not_clock                               : std_logic;
+    signal PCF                                     : std_logic_vector(31 downto 0);
+    signal PCPlus4F                                : std_logic_vector(31 downto 0);
 
 begin
 
@@ -112,7 +114,7 @@ begin
 
     imOut_o <= imOut;
     dmOut_o <= dmOut;
-    imAddr  <= imAddr_o;
+    imAddr  <= PCF;
     dmAddr  <= dmAddr_o;
 
     --Entradas dos registradores do pipeline
@@ -204,11 +206,11 @@ begin
 
     -- somador da proxima instrucao ordenada
     pcNOrdInst: alu 
-        generic map(64)
+        generic map(32)
         port map(
-            imAddr_o, 
-            "0000000000000000000000000000000000000000000000000000000000000100", 
-            PCNextOrdInst, 
+            PCF, 
+            "00000000000000000000000000000100", 
+            PCPlus4F, 
             "0010", 
             open, 
             open, 
@@ -226,11 +228,11 @@ begin
             "11", 
             '0', 
             PCNextInst, 
-            imAddr_o
+            PCF
         );
     
     -- MUX seleciona prox instrucao ordenada ou com branch
-    PCNextInst <= PCNextOrdInst when pcsrc = '0' else PCBranchInst;
+    PCNextInst <= PCPlus4F when pcsrc = '0' else PCBranchInst;
 
     -- MUX seleciona qual parte da instrucao entra no banco de registradores
     MUXImOut <= imOut_o(20 downto 16) when reg2loc = '0' else imOut_o(4 downto 0);
@@ -286,7 +288,7 @@ begin
     brAlu : alu
         generic map(64)
         port map(
-            imAddr_o,
+            PCF,
             shiftedExtAddr, 
             PCBranchInst, 
             "0010", 
