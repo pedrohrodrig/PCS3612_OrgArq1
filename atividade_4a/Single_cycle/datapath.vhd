@@ -99,8 +99,9 @@ architecture PoliLeg_FD of datapath is
     signal out_EXMEM, in_EXMEM                     : std_logic_vector(63 downto 0);
     signal out_MEMWB, in_MEMWB                     : std_logic_vector(63 downto 0);
     signal not_clock                               : std_logic;
-    signal PCF                                     : std_logic_vector(31 downto 0);
-    signal PCPlus4F                                : std_logic_vector(31 downto 0);
+    signal PC_F, PC_D                              : std_logic_vector(31 downto 0);
+    signal PCPlus4_F, PCPlus4_D                    : std_logic_vector(31 downto 0);
+    signal Instr_F, Instr_D                        : std_logic_vector(31 downto 0);
 
 begin
 
@@ -114,7 +115,7 @@ begin
 
     imOut_o <= imOut;
     dmOut_o <= dmOut;
-    imAddr  <= PCF;
+    imAddr  <= PC_F;
     dmAddr  <= dmAddr_o;
 
     --Entradas dos registradores do pipeline
@@ -126,9 +127,9 @@ begin
 
     not_clock <= not clock;
 
-    --registrador IF/ID
-    REG_IF_ID: registrador_universal
-        generic map(word_size => 64)
+    --registradores IF/ID
+    REG_IF_ID_Instr: registrador_universal
+        generic map(word_size => 32)
         port map(
             clock           => clock, 
             clear           => reset, 
@@ -136,10 +137,36 @@ begin
             enable          => '1',
             control         => "11",
             serial_input    => '0',
-            parallel_input  => in_IFID,
-            parallel_output => out_IFID
+            parallel_input  => Instr_F,
+            parallel_output => Instr_D
         );
-    
+
+    REG_IF_ID_PC: registrador_universal
+        generic map(word_size => 32)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => PC_F,
+            parallel_output => PC_D
+        );
+
+    REG_IF_ID_PCPlus4: registrador_universal
+        generic map(word_size => 32)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => PCPlus4_F,
+            parallel_output => PCPlus4_D
+        );
+
     --registrador ID/EX
     --Saidas: 
             --Entrada da ULA (rd1)
@@ -147,8 +174,8 @@ begin
             --Entrada do somador (imm)
             --Entrada do mux (imm)
             --Entrada do somador (PCatual)
-    REG_ID_EX: registrador_universal
-        generic map(word_size => 256)
+    REG_ID_EX_RD1: registrador_universal
+        generic map(word_size => 32)
         port map(
             clock           => clock, 
             clear           => reset, 
@@ -156,9 +183,24 @@ begin
             enable          => '1',
             control         => "11",
             serial_input    => '0',
-            parallel_input  => in_IDEX,
-            parallel_output => out_IDEX
+            parallel_input  => RD1_D,
+            parallel_output => RD1_E
         );
+
+    REG_ID_EX_RD2: registrador_universal
+        generic map(word_size => 32)
+        port map(
+            clock           => clock, 
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => RD2_D,
+            parallel_output => RD2_E
+        );
+
+    
 
     --registrador EX/MEM
     --Entradas: 
@@ -208,9 +250,9 @@ begin
     pcNOrdInst: alu 
         generic map(32)
         port map(
-            PCF, 
+            PC_F, 
             "00000000000000000000000000000100", 
-            PCPlus4F, 
+            PCPlus4_F, 
             "0010", 
             open, 
             open, 
@@ -228,11 +270,11 @@ begin
             "11", 
             '0', 
             PCNextInst, 
-            PCF
+            PC_F
         );
     
     -- MUX seleciona prox instrucao ordenada ou com branch
-    PCNextInst <= PCPlus4F when pcsrc = '0' else PCBranchInst;
+    PCNextInst <= PCPlus4_F when pcsrc = '0' else PCBranchInst;
 
     -- MUX seleciona qual parte da instrucao entra no banco de registradores
     MUXImOut <= imOut_o(20 downto 16) when reg2loc = '0' else imOut_o(4 downto 0);
@@ -288,7 +330,7 @@ begin
     brAlu : alu
         generic map(64)
         port map(
-            PCF,
+            PC_F,
             shiftedExtAddr, 
             PCBranchInst, 
             "0010", 
