@@ -4,18 +4,18 @@ use ieee.std_logic_1164.all;
 entity controlunit is
     port(
         -- From Datapath
-        opcode         : in std_logic_vector(6 downto 0);
-        funct3         : in std_logic_vector(2 downto 0);
-        funct7b5       : in std_logic;
+        opcode       : in std_logic_vector(6 downto 0);
+        funct3       : in std_logic_vector(2 downto 0);
+        funct7b5     : in std_logic;
         -- To Datapath
-        RegWrite_D     : out std_logic;
-        ResultSrc_D    : out std_logic_vector(1 downto 0);
-        MemWrite_D     : out std_logic;
-        Jump_D         : out std_logic;
-        Branch_D       : out std_logic;
-        ALUControl_D   : out std_logic_vector(2 downto 0);
-        ALUSrc_D       : out std_logic;
-        ImmSrc_D       : out std_logic_vector(1 downto 0)
+        RegWrite_D   : out std_logic;
+        ResultSrc_D  : out std_logic_vector(1 downto 0);
+        MemWrite_D   : out std_logic;
+        Jump_D       : out std_logic;
+        Branch_D     : out std_logic;
+        ALUControl_D : out std_logic_vector(2 downto 0);
+        ALUSrc_D     : out std_logic;
+        ImmSrc_D     : out std_logic_vector(1 downto 0)
     );
 end entity;
 
