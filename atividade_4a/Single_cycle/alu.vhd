@@ -1,81 +1,53 @@
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
---ULA
-entity alu is
-	generic(
-		size : natural := 10
-	);
-	port (
-		A, B 		 : in  std_logic_vector(size-1 downto 0);
-		F  			 : out std_logic_vector(size-1 downto 0);
-		S   		 : in  std_logic_vector (3 downto 0);
-		Z            : out std_logic;
-		Ov           : out std_logic;
-		Co           : out std_logic
-		);
-end entity alu;
+entity ALU is 
+    generic (
+        word_size : natural := 64
+    );
+    port (
+        A          : in  std_logic_vector(word_size-1 downto 0);
+        B          : in  std_logic_vector(word_size-1 downto 0);
+        ALUControl : in  std_logic_vector(2 downto 0);
+        Result     : out std_logic_vector(word_size-1 downto 0);
+        Overflow   : out std_logic;
+        CarryOut   : out std_logic;
+        Negative   : out std_logic;
+        Zero       : out std_logic
+    );
+end entity;
 
-
-
-architecture arch of alu is
-
-	component alu1bit is 
-		port (
-			a, b, less, cin             : in  std_logic;
-            ainvert, binvert            : in  std_logic;
-            operation                   : in  std_logic_vector(1 downto 0);
-            result, cout, set, overflow : out std_logic
-		);
-	end component;
-
-	signal cin, result, cout, set, ovf : std_logic_vector(size-1 downto 0) := (others => '0');
-	signal op                          : std_logic_vector(1 downto 0);
-    signal zerado                      : std_logic_vector(size-1 downto 0) := (others => '0');
+architecture ALU_behavioral of ALU is
     
+    signal B_or_notB        : std_logic_vector(word_size-1 downto 0);
+    signal adderSrcB        : std_logic_vector(word_size-1 downto 0);
+    signal resultAdder      : std_logic_vector(word_size downto 0);
+    signal s_result         : std_logic_vector(word_size-1 downto 0);
+
+    constant oneVector      : std_logic_vector(word_size-1 downto 0) := (0 => '1', others => '0');
+
 begin
+    
+    -- MUX 2x1
+    B_or_notB <= B when ALUControl(0) = '0' else (not B);
+    adderSrcB <= B when ALUControl(0) = '1' else std_logic_vector(unsigned(B_or_notB) + unsigned(oneVector));
 
-    op <= S(1 downto 0);
+    -- Adder
+    resultAdder <= std_logic_vector(unsigned(A(A'high) & A) + unsigned(adderSrcB(adderSrcB'high) & adderSrcB));
+    
+    -- MUX 5x1
+    s_result <= resultAdder(word_size-1 downto 0)       when ALUControl = "000" or ALUControl = "001" else 
+                (A and B)                               when ALUControl = "010"                       else
+                (A or B)                                when ALUControl = "011"                       else
+                '0' & resultAdder(word_size-2 downto 0) when ALUControl = "101"                       else
+                (others => '0');
+                
+    -- Outputs
+    CarryOut <= resultAdder(word_size) and (not ALUControl(1));
+    Overflow <= (A(word_size-1) xnor B(word_size-1) xnor ALUControl(0)) and (A(word_size-1) xor resultAdder(word_size-1)) and (not ALUControl(1));
+    Negative <= s_result(word_size-1);
+    Zero     <= '1' when to_integer(unsigned(s_result)) = 0 else '0';
+    Result   <= s_result;
 
-    gen : for i in 0 to (size - 1) generate
-        G0: if i = 0 generate
-            
-            alu0 : alu1bit port map (
-                a         => A(0),
-                b         => B(0),
-                less      => B(0),
-                cin       => S(2),
-                result    => result(0),
-                cout      => cout(0),
-                set       => set(0),
-                overflow  => ovf(0),
-                ainvert   => S(3),
-                binvert   => S(2),
-                operation => op
-            );
-        end generate;
-
-        Gn: if i > 0 generate
-
-            alui : alu1bit port map (
-                a         => A(i),
-                b         => B(i),
-                less      => B(i),
-                cin       => cout(i-1),
-                result    => result(i),
-                cout      => cout(i),
-                set       => set(i),
-                overflow  => ovf(i),
-                ainvert   => S(3),
-                binvert   => S(2),
-                operation => op
-            );
-        end generate;
-    end generate gen;  
-
-    Ov <= ovf(size-1);
-    F <= (result);
-    Co <= cout(size-1);
-    Z <= '1' when result = zerado else '0';
-
-end architecture;
+end architecture ALU_behavioral;

@@ -1,3 +1,4 @@
+
 --Fluxo de dados
 library ieee;
 use ieee.std_logic_1164.all;
@@ -27,30 +28,32 @@ entity datapath is
         funct7 : out std_logic;
 
         -- IM Interface
-        IM_Addr     : out std_logic_vector(63 downto 0);
+        IM_Addr     : out std_logic_vector(31 downto 0);
         IM_ReadData : in  std_logic_vector(31 downto 0); --Instrução coletada da memória de intruções
 
         -- DM Interface
         DM_WriteEnable : out std_logic;
-        DM_Addr        : out std_logic_vector(63 downto 0);
-        DM_WriteData   : out std_logic_vector(63 downto 0);
-        DM_ReadData    : in  std_logic_vector(63 downto 0)
+        DM_Addr        : out std_logic_vector(31 downto 0);
+        DM_WriteData   : out std_logic_vector(31 downto 0);
+        DM_ReadData    : in  std_logic_vector(31 downto 0)
     );
 end entity datapath;
 
 architecture PoliLeg_FD of datapath is
 
-    component alu is
-        generic(
-            size : natural := 64
+    component ALU is 
+        generic (
+            word_size : natural := 64
         );
-        port(
-            A, B : in  std_logic_vector(size-1 downto 0); -- inputs
-            F    : out std_logic_vector(size-1 downto 0); -- output
-            S    : in  std_logic_vector(3 downto 0); -- op selection
-            Z    : out std_logic; -- zero flag
-            Ov   : out std_logic; -- overflow flag
-            Co   : out std_logic -- carry out
+        port (
+            A          : in  std_logic_vector(word_size-1 downto 0);
+            B          : in  std_logic_vector(word_size-1 downto 0);
+            ALUControl : in  std_logic_vector(2 downto 0);
+            Result     : out std_logic_vector(word_size-1 downto 0);
+            Overflow   : out std_logic;
+            CarryOut   : out std_logic;
+            Negative   : out std_logic;
+            Zero       : out std_logic
         );
     end component;
 
@@ -71,7 +74,7 @@ architecture PoliLeg_FD of datapath is
 
     component signExtend is
         port(
-            Instr_D  : in  std_logic_vector(24 downto 0); 
+            Instr_D  : in  std_logic_vector(31 downto 7); 
             ImmSrc_D : in  std_logic_vector(1 downto 0);
             ImmExt_D : out std_logic_vector(31 downto 0) 
         );
@@ -113,10 +116,10 @@ architecture PoliLeg_FD of datapath is
     signal MemWrite_E, MemWrite_M                                : std_logic;
     signal Jump_E                                                : std_logic;
     signal Branch_E                                              : std_logic;
-    signal ALUControl_E                                          : std_logic;
+    signal ALUControl_E                                          : std_logic_vector(2 downto 0);
     signal ALUSrc_E                                              : std_logic;
 
-    constant FourVector                                          : std_logic_vector(63 downto 0) := "0000000000000000000000000000000000000000000000000000000000000100";
+    constant FourVector                                          : std_logic_vector(31 downto 0) := "00000000000000000000000000000100";
 
 begin
     
@@ -412,7 +415,7 @@ begin
             Jump_E       <= Jump_D;
             Branch_E     <= Branch_D;
             ALUControl_E <= ALUControl_D;
-            ALUSrc_E     <= ALUSrc_E;
+            ALUSrc_E     <= ALUSrc_D;
             
             RegWrite_M   <= RegWrite_E;
             ResultSrc_M  <= ResultSrc_E;
@@ -430,32 +433,35 @@ begin
     PC: registrador_universal
         generic map(word_size => 32)
         port map(
-            clock          => clock,
-            clear          => reset, 
-            set            => '0', 
-            enable         => '1', 
-            control        => "11", 
-            serial_input   => '0', 
-            parallel_input => PC_F_line, 
-            parallel_input => PC_F
+            clock           => clock,
+            clear           => reset, 
+            set             => '0', 
+            enable          => '1', 
+            control         => "11", 
+            serial_input    => '0', 
+            parallel_input  => PC_F_line, 
+            parallel_output => PC_F
         );
 
     -- Next Instruction Counter
-    NEXT_INSTRUCTION: alu 
-        generic map(size => 32)
+    NEXT_INSTRUCTION: ALU
+        generic map (
+            word_size => 32
+        )
         port map(
-            A  => PC_F, 
-            B  => FourVector, 
-            F  => PCPlus4_F, 
-            S  => "0010", 
-            Z  => open, 
-            Ov => open, 
-            Co => open
+            A          => PC_F,
+            B          => FourVector,
+            ALUControl => "000",
+            Result     => PCPlus4_F,
+            Overflow   => open,
+            CarryOut   => open,
+            Negative   => open,
+            Zero       => open
         );
 
     -- Instruction Memory Interface
     IM_Addr     <= PC_F;
-    IM_ReadData <= Instr_F;
+    Instr_F     <= IM_ReadData;
     
     -- banco de registradores
     not_clock <= not clock;
@@ -480,7 +486,7 @@ begin
     -- sign extender
     SIGN_EXT: signExtend
     port map(
-        Instr_D  => Instr_D,
+        Instr_D  => Instr_D(31 downto 7),
         ImmSrc_D => ImmSrc_D,
         ImmExt_D => ImmExt_D
     );
@@ -489,30 +495,36 @@ begin
     SrcB_E <= RD2_E when ALUSrc_E = '0' else ImmExt_E;
 
     -- Branch ALU
-    BRANCH_ALU: alu
-        generic map(size => 32)
-        port map(
-            A  => PC_E, 
-            B  => ImmExt_E, 
-            F  => PCTarget_E, 
-            S  => "0010", 
-            Z  => open, 
-            Ov => open, 
-            Co => open
+    BRANCH_ALU: ALU
+        generic map (
+            word_size => 32
+        )
+        port map (
+            A          => PC_E,
+            B          => ImmExt_E,
+            ALUControl => "000",
+            Result     => PCTarget_E,
+            Overflow   => open,
+            CarryOut   => open,
+            Negative   => open,
+            Zero       => open
         );
 
     -- General ALU
-    GENERAL_ALU: alu
-        generic map(size => 32)
-        port map(
-            A  => SrcA_E, 
-            B  => SrcB_E, 
-            F  => ALUResult_E, 
-            S  => ALUControl_E, 
-            Z  => Zero_E, 
-            Ov => open, 
-            Co => open 
-        );
+    GENERAL_ALU: ALU
+    generic map (
+        word_size => 32
+    )
+    port map (
+        A          => SrcA_E,
+        B          => SrcB_E,
+        ALUControl => ALUControl_E,
+        Result     => ALUResult_E,
+        Overflow   => open,
+        CarryOut   => open,
+        Negative   => open,
+        Zero       => Zero_E
+    );
 
     -- Data Memory Interface
     ReadData_M     <= DM_ReadData;
