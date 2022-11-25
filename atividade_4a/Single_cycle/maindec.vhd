@@ -3,13 +3,13 @@ use ieee.std_logic_1164.all;
 
 entity maindec is
     port(
-        op: in std_logic_vector(6 downto 0);
-        ResultSrc: out std_logic_vector(1 downto 0);
-        MemWrite: out std_logic;
-        Branch, ALUSrc: out std_logic;
-        RegWrite, Jump: out std_logic;
-        ImmSrc: out std_logic_vector(1 downto 0);
-        ALUOp: out std_logic_vector(1 downto 0)
+        op             : in  std_logic_vector(6 downto 0);
+        ResultSrc      : out std_logic_vector(1 downto 0);
+        MemWrite       : out std_logic;
+        Branch, ALUSrc : out std_logic;
+        RegWrite, Jump : out std_logic;
+        ImmSrc         : out std_logic_vector(1 downto 0);
+        ALUOp          : out std_logic_vector(1 downto 0)
     );
 end;
 
@@ -25,7 +25,7 @@ begin
             when "1100011" => controls <= "01000001010"; --beq
             when "0010011" => controls <= "10010000100"; --I–type ALU
             when "1101111" => controls <= "11100100001"; --jal
-            when others => controls <= "00000000000"; --not valid
+            when others    => controls <= "00000000000"; --not valid
         end case;
     end process;
 
