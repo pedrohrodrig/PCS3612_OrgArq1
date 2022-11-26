@@ -84,7 +84,7 @@ architecture riscv_pipeline_behavioral of riscv_pipeline is
 begin
     
     UC: controlunit
-        port(
+        port map (
             opcode       => s_opcode,
             funct3       => s_funct3,
             funct7b5     => s_funct7,
