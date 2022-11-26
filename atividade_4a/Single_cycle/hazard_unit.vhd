@@ -13,10 +13,12 @@ entity hazard_unit is
         ResultSrc_E_b0 : in std_logic;
         RegWrite_M     : in std_logic;
         RegWrite_W     : in std_logic;
+        PCSrc_E        : in std_logic;
         ForwardA_E     : out std_logic_vector(1 downto 0);
         ForwardB_E     : out std_logic_vector(1 downto 0);
         Stall_F        : out std_logic;
         Stall_D        : out std_logic;
+        Flush_D        : out std_logic;
         Flush_E        : out std_logic   
     );
 end entity;
@@ -39,6 +41,7 @@ begin
 
     Stall_F <= lwStall;
     Stall_D <= lwStall;
-    Flush_E <= lwStall;
+    Flush_D <= PCSrc_E;
+    Flush_E <= lwStall or PCSrc_E;
     
 end architecture hazard_unit_behavioral;

@@ -105,10 +105,12 @@ architecture PoliLeg_FD of datapath is
             ResultSrc_E_b0 : in std_logic;
             RegWrite_M     : in std_logic;
             RegWrite_W     : in std_logic;
+            PCSrc_E        : in std_logic;
             ForwardA_E     : out std_logic_vector(1 downto 0);
             ForwardB_E     : out std_logic_vector(1 downto 0);
             Stall_F        : out std_logic;
             Stall_D        : out std_logic;
+            Flush_D        : out std_logic;
             Flush_E        : out std_logic   
         );
     end component;
@@ -145,6 +147,7 @@ architecture PoliLeg_FD of datapath is
     signal Flush_E                                               : std_logic;
     signal Stall_F, Stall_D                                      : std_logic;
     signal EnableRegisterFetchToDecode                           : std_logic;
+    signal ClearRegisterFetchToDecode                            : std_logic;
     signal EnableRegisterProgramCounter                          : std_logic;
     signal ClearRegisterDecodeToExecute                          : std_logic;
 
@@ -155,6 +158,7 @@ begin
     --Registradores do pipeline
     EnableRegisterFetchToDecode  <= not Stall_D;
     EnableRegisterProgramCounter <= not Stall_F;
+    ClearRegisterFetchToDecode   <= Flush_D;
     ClearRegisterDecodeToExecute <= Flush_E or reset;
 
     -- registradores IF/ID
@@ -449,9 +453,9 @@ begin
         );
 
     -- Registradores de sinais de controle
-    CONTROL_UNIT_REGISTERS: process(clock, reset)
+    CONTROL_UNIT_REGISTER_ID_EX: process(clock, ClearRegisterDecodeToExecute)
     begin
-        if reset = '0' then
+        if ClearRegisterDecodeToExecute = '1' then
             RegWrite_E   <= '0';
             ResultSrc_E  <= "00";
             MemWrite_E   <= '0';
@@ -459,13 +463,6 @@ begin
             Branch_E     <= '0';
             ALUControl_E <= "000";
             ALUSrc_E     <= '0';
-
-            RegWrite_M   <= '0';
-            ResultSrc_M  <= "00";
-            MemWrite_M   <= '0';
-            
-            RegWrite_W   <= '0';
-            ResultSrc_W  <= "00";
         elsif clock'event and clock = '1' then
             RegWrite_E   <= RegWrite_D;
             ResultSrc_E  <= ResultSrc_D;
@@ -474,11 +471,28 @@ begin
             Branch_E     <= Branch_D;
             ALUControl_E <= ALUControl_D;
             ALUSrc_E     <= ALUSrc_D;
-            
+        end if;
+    end process;
+
+    CONTROL_UNIT_REGISTER_EX_MEM: process(clock, reset)
+    begin
+        if reset = '0' then
+            RegWrite_M   <= '0';
+            ResultSrc_M  <= "00";
+            MemWrite_M   <= '0';
+        elsif clock'event and clock = '1' then
             RegWrite_M   <= RegWrite_E;
             ResultSrc_M  <= ResultSrc_E;
             MemWrite_M   <= MemWrite_E;
+        end if;
+    end process;
 
+    CONTROL_UNIT_REGISTER_MEM_WB: process(clock, reset)
+    begin
+        if reset = '0' then
+            egWrite_W   <= '0';
+            ResultSrc_W  <= "00";
+        elsif clock'event and clock = '1' then
             RegWrite_W   <= RegWrite_M;
             ResultSrc_W  <= ResultSrc_M;
         end if;
@@ -631,10 +645,12 @@ begin
         ResultSrc_E_b0 => ResultSrc_E(0),
         RegWrite_M     => RegWrite_M,
         RegWrite_W     => RegWrite_W,
+        PCSrc_E        => PCSrc_E,
         ForwardA_E     => ForwardA_E,
         ForwardB_E     => ForwardB_E,
         Stall_F        => Stall_F,
         Stall_D        => Stall_D,
+        Flush_D        => Flush_D,
         Flush_E        => Flush_E
     );
    
