@@ -26,18 +26,19 @@ end entity;
 architecture hazard_unit_behavioral of hazard_unit is
 
     signal lwStall : std_logic;
+    constant zeroVector : std_logic_vector(4 downto 0) := (others => '0');
     
 begin
     
-    ForwardA_E <= "10" when (Rs1_E = Rd_M and RegWrite_M = '1' and Rs1_E /= '0') else
-                  "01" when (Rs1_E = Rd_W and RegWrite_W = '1' and Rs1_E /= '0') else
+    ForwardA_E <= "10" when (Rs1_E = Rd_M and RegWrite_M = '1' and Rs1_E /= zeroVector) else
+                  "01" when (Rs1_E = Rd_W and RegWrite_W = '1' and Rs1_E /= zeroVector) else
                   "00";
 
-    ForwardB_E <= "10" when (Rs2_E = Rd_M and RegWrite_M = '1' and Rs2_E /= '0') else
-                  "01" when (Rs2_E = Rd_W and RegWrite_W = '1' and Rs2_E /= '0') else
+    ForwardB_E <= "10" when (Rs2_E = Rd_M and RegWrite_M = '1' and Rs2_E /= zeroVector) else
+                  "01" when (Rs2_E = Rd_W and RegWrite_W = '1' and Rs2_E /= zeroVector) else
                   "00";
 
-    lwStall <= '1' when ResultSrc_E_b0 and ((Rs1_D = Rd_E) or (Rs2_D = Rd_E)) else '0';
+    lwStall <= '1' when ResultSrc_E_b0 = '1' and ((Rs1_D = Rd_E) or (Rs2_D = Rd_E)) else '0';
 
     Stall_F <= lwStall;
     Stall_D <= lwStall;

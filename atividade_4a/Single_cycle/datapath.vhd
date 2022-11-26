@@ -144,7 +144,7 @@ architecture PoliLeg_FD of datapath is
     signal Rs1_D, Rs1_E                                          : std_logic_vector(4 downto 0);
     signal Rs2_D, Rs2_E                                          : std_logic_vector(4 downto 0);
     signal HazardSrcB_E                                          : std_logic_vector(31 downto 0);
-    signal Flush_E                                               : std_logic;
+    signal Flush_D, Flush_E                                      : std_logic;
     signal Stall_F, Stall_D                                      : std_logic;
     signal EnableRegisterFetchToDecode                           : std_logic;
     signal ClearRegisterFetchToDecode                            : std_logic;
@@ -490,7 +490,7 @@ begin
     CONTROL_UNIT_REGISTER_MEM_WB: process(clock, reset)
     begin
         if reset = '0' then
-            egWrite_W   <= '0';
+            RegWrite_W   <= '0';
             ResultSrc_W  <= "00";
         elsif clock'event and clock = '1' then
             RegWrite_W   <= RegWrite_M;
