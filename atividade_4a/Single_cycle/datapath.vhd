@@ -93,6 +93,26 @@ architecture PoliLeg_FD of datapath is
         );
     end component;
 
+    component hazard_unit is
+        port(
+            Rs1_D          : in std_logic_vector(4 downto 0);
+            Rs1_E          : in std_logic_vector(4 downto 0);
+            Rs2_D          : in std_logic_vector(4 downto 0);
+            Rs2_E          : in std_logic_vector(4 downto 0);
+            Rd_E           : in std_logic_vector(4 downto 0);
+            Rd_M           : in std_logic_vector(4 downto 0);
+            Rd_W           : in std_logic_vector(4 downto 0);
+            ResultSrc_E_b0 : in std_logic;
+            RegWrite_M     : in std_logic;
+            RegWrite_W     : in std_logic;
+            ForwardA_E     : out std_logic_vector(1 downto 0);
+            ForwardB_E     : out std_logic_vector(1 downto 0);
+            Stall_F        : out std_logic;
+            Stall_D        : out std_logic;
+            Flush_E        : out std_logic   
+        );
+    end component;
+
     signal not_clock                                             : std_logic;
     signal PC_F_line                                             : std_logic_vector(31 downto 0);
     signal PC_F, PC_D, PC_E                                      : std_logic_vector(31 downto 0);
@@ -118,12 +138,24 @@ architecture PoliLeg_FD of datapath is
     signal Branch_E                                              : std_logic;
     signal ALUControl_E                                          : std_logic_vector(2 downto 0);
     signal ALUSrc_E                                              : std_logic;
+    signal ForwardA_E, ForwardB_E                                : std_logic_vector(1 downto 0);
+    signal Rs1_D, Rs1_E                                          : std_logic_vector(4 downto 0);
+    signal Rs2_D, Rs2_E                                          : std_logic_vector(4 downto 0);
+    signal HazardSrcB_E                                          : std_logic_vector(31 downto 0);
+    signal Flush_E                                               : std_logic;
+    signal Stall_F, Stall_D                                      : std_logic;
+    signal EnableRegisterFetchToDecode                           : std_logic;
+    signal EnableRegisterProgramCounter                          : std_logic;
+    signal ClearRegisterDecodeToExecute                          : std_logic;
 
     constant FourVector                                          : std_logic_vector(31 downto 0) := "00000000000000000000000000000100";
 
 begin
     
     --Registradores do pipeline
+    EnableRegisterFetchToDecode  <= not Stall_D;
+    EnableRegisterProgramCounter <= not Stall_F;
+    ClearRegisterDecodeToExecute <= Flush_E or reset;
 
     -- registradores IF/ID
     REG_IF_ID_Instr: registrador_universal
@@ -132,7 +164,7 @@ begin
             clock           => clock, 
             clear           => reset, 
             set             => '0', 
-            enable          => '1',
+            enable          => EnableRegisterFetchToDecode,
             control         => "11",
             serial_input    => '0',
             parallel_input  => Instr_F,
@@ -145,7 +177,7 @@ begin
             clock           => clock, 
             clear           => reset, 
             set             => '0', 
-            enable          => '1',
+            enable          => EnableRegisterFetchToDecode,
             control         => "11",
             serial_input    => '0',
             parallel_input  => PC_F,
@@ -158,7 +190,7 @@ begin
             clock           => clock, 
             clear           => reset, 
             set             => '0', 
-            enable          => '1',
+            enable          => EnableRegisterFetchToDecode,
             control         => "11",
             serial_input    => '0',
             parallel_input  => PCPlus4_F,
@@ -170,7 +202,7 @@ begin
         generic map(word_size => 32)
         port map(
             clock           => clock, 
-            clear           => reset, 
+            clear           => ClearRegisterDecodeToExecute, 
             set             => '0', 
             enable          => '1',
             control         => "11",
@@ -183,7 +215,7 @@ begin
         generic map(word_size => 32)
         port map(
             clock           => clock, 
-            clear           => reset, 
+            clear           => ClearRegisterDecodeToExecute, 
             set             => '0', 
             enable          => '1',
             control         => "11",
@@ -196,7 +228,7 @@ begin
         generic map(word_size => 32)
         port map(
             clock           => clock, 
-            clear           => reset, 
+            clear           => ClearRegisterDecodeToExecute, 
             set             => '0', 
             enable          => '1',
             control         => "11",
@@ -209,7 +241,7 @@ begin
         generic map(word_size => 32)
         port map(
             clock           => clock, 
-            clear           => reset, 
+            clear           => ClearRegisterDecodeToExecute, 
             set             => '0', 
             enable          => '1',
             control         => "11",
@@ -222,7 +254,7 @@ begin
         generic map(word_size => 32)
         port map(
             clock           => clock, 
-            clear           => reset, 
+            clear           => ClearRegisterDecodeToExecute, 
             set             => '0', 
             enable          => '1',
             control         => "11",
@@ -235,7 +267,7 @@ begin
         generic map(word_size => 5)
         port map(
             clock           => clock, 
-            clear           => reset, 
+            clear           => ClearRegisterDecodeToExecute, 
             set             => '0', 
             enable          => '1',
             control         => "11",
@@ -248,13 +280,39 @@ begin
         generic map(word_size => 2)
         port map(
             clock           => clock, 
-            clear           => reset, 
+            clear           => ClearRegisterDecodeToExecute, 
             set             => '0', 
             enable          => '1',
             control         => "11",
             serial_input    => '0',
             parallel_input  => ResultSrc_D,
             parallel_output => ResultSrc_E
+        );
+
+    REG_ID_EX_Rs1: registrador_universal
+        generic map(word_size => 5)
+        port map(
+            clock           => clock, 
+            clear           => ClearRegisterDecodeToExecute, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => Rs1_D,
+            parallel_output => Rs1_E
+        );
+
+    REG_ID_EX_Rs2: registrador_universal
+        generic map(word_size => 5)
+        port map(
+            clock           => clock, 
+            clear           => ClearRegisterDecodeToExecute, 
+            set             => '0', 
+            enable          => '1',
+            control         => "11",
+            serial_input    => '0',
+            parallel_input  => Rs2_D,
+            parallel_output => Rs2_E
         );
 
     --registradores EX/MEM
@@ -436,7 +494,7 @@ begin
             clock           => clock,
             clear           => reset, 
             set             => '0', 
-            enable          => '1', 
+            enable          => EnableRegisterProgramCounter, 
             control         => "11", 
             serial_input    => '0', 
             parallel_input  => PC_F_line, 
@@ -491,8 +549,18 @@ begin
         ImmExt_D => ImmExt_D
     );
 
+    -- Hazard Forwarding MUX 3x1
+    SrcA_E <= RD1_E       when ForwardA_E = "00" else
+              Result_W    when ForwardA_E = "01" else
+              ALUResult_M when ForwardA_E = "10";
+
+    -- Hazard Forwarding MUX 3x1
+    HazardSrcB_E <= RD2_E       when ForwardB_E = "00" else
+                    Result_W    when ForwardA_E = "01" else
+                    ALUResult_M when ForwardA_E = "10";
+
     -- MUX 2x1
-    SrcB_E <= RD2_E when ALUSrc_E = '0' else ImmExt_E;
+    SrcB_E <= HazardSrcB_E when ALUSrc_E = '0' else ImmExt_E;
 
     -- Branch ALU
     BRANCH_ALU: ALU
@@ -539,7 +607,9 @@ begin
                 "00000000000000000000000000000000";
 
     -- Connecting signals
-    WriteData_E <= RD2_E;
+    WriteData_E <= HazardSrcB_E;
+    Rs1_D       <= Instr_D(19 downto 15);
+    Rs2_D       <= Instr_D(24 downto 20);
 
     -- Output logic
     opcode <= Instr_D(6 downto 0);
@@ -547,5 +617,25 @@ begin
     funct7 <= Instr_D(30);
 
     PCSrc_E <= Jump_E or (Zero_E and Branch_E);
+
+    -- Hazard Unit
+    HAZARD: hazard_unit
+    port map (
+        Rs1_D          => Rs1_D,
+        Rs1_E          => Rs1_E,
+        Rs2_D          => Rs2_D,
+        Rs2_E          => Rs2_E,
+        Rd_E           => Rd_E,
+        Rd_M           => Rd_M,
+        Rd_W           => Rd_W,
+        ResultSrc_E_b0 => ResultSrc_E(0),
+        RegWrite_M     => RegWrite_M,
+        RegWrite_W     => RegWrite_W,
+        ForwardA_E     => ForwardA_E,
+        ForwardB_E     => ForwardB_E,
+        Stall_F        => Stall_F,
+        Stall_D        => Stall_D,
+        Flush_E        => Flush_E
+    );
    
 end PoliLeg_FD ; -- PoliLeg_FD
