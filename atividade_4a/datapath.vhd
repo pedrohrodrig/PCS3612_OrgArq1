@@ -621,6 +621,7 @@ begin
 
     -- Connecting signals
     WriteData_E <= HazardSrcB_E;
+    Rd_D        <= Instr_D(11 downto 7);
     Rs1_D       <= Instr_D(19 downto 15);
     Rs2_D       <= Instr_D(24 downto 20);
 
